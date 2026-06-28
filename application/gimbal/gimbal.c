@@ -109,7 +109,7 @@ void GimbalInit()
                 .MaxOut = 400,
             },
             .speed_PID = {
-                .Kp = 3300,//1300
+                .Kp = 1300,//1300
                 .Ki = 0,//
                 .Kd =0.005,//0.01
                  .CoefA = 0.8,
@@ -133,8 +133,8 @@ void GimbalInit()
             .motor_reverse_flag = MOTOR_DIRECTION_NORMAL,
             .feedforward_flag = SPEED_FEEDFORWARD | CURRENT_FEEDFORWARD,  // 启用速度+电流前馈
         },
-        .motor_type = GM6020_CURRENT};
-        
+        .motor_type = GM6020_CURRENT,
+};
     Motor_Init_Config_s pitch_config = {
         .can_init_config = {
             .can_handle = &hcan2,
@@ -154,7 +154,7 @@ void GimbalInit()
                 .MaxOut = 600,//600
             },
             .speed_PID = {
-                .Kp=3500,//3500
+                .Kp=1300,//3500
                 .Ki =0,//0
                 .Kd =0.0005,//0.0005
                 .CoefA =1500,//1500

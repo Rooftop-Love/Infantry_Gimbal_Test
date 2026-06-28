@@ -180,8 +180,8 @@ void ChassisInit()
         .controller_param_init_config = {
             // 速度环 (主控制)
             .speed_PID = {
-                .Kp = 3.0f,
-                .Ki = 0.0f,
+                .Kp = 4.5f,
+                .Ki = 0.05f,
                 .Kd = 0.005f,
                 .IntegralLimit = 3000,
                 .Improve = PID_Integral_Limit,
@@ -842,6 +842,10 @@ void ChassisTask()
 #ifdef CHASSIS_BOARD
     chassis_cmd_recv = *(Chassis_Ctrl_Cmd_s *)CANCommGet(chasiss_can_comm);
 #endif // CHASSIS_BOARD
+    if (chassis_cmd_recv.ui_mode == UI_REFRESH)
+    {
+        NVIC_SystemReset();
+    }
     //chassis_cmd_recv.chassis_mode = CHASSIS_ROTATE;
     if (chassis_cmd_recv.chassis_mode == CHASSIS_ZERO_FORCE)
     { // 如果出现重要模块离线或遥控器设置为急停,让电机停止
@@ -913,7 +917,7 @@ void ChassisTask()
 #endif
     chassis_feedback_data.self_color = referee_data->GameRobotState.robot_id > 7 ? COLOR_BLUE : COLOR_RED;
     //当前只做了17mm热量的数据获取,后续根据robot_def中的宏切换双枪管和英雄42mm的情况
-    chassis_feedback_data.rest_heat = referee_data->GameRobotState.shooter_cooling_rate * (referee_data->GameRobotState.shooter_cooling_limit - referee_data->PowerHeatData.shooter_17mm_heat);
+    chassis_feedback_data.rest_heat = (referee_data->GameRobotState.shooter_cooling_limit - referee_data->PowerHeatData.shooter_17mm_heat);
     chassis_feedback_data.bullet_speed = referee_data->ShootData.bullet_speed;
     
     ui_data.chassis_mode = chassis_cmd_recv.chassis_mode;

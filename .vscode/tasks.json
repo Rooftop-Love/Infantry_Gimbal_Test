@@ -1,47 +1,157 @@
 {
-    // See https://go.microsoft.com/fwlink/?LinkId=733558
-    "version": "2.0.0",
-    "tasks": [
-        {
-            "label": "build task",
-            "type": "shell",
-            "command": "mingw32-make -j24",
-            "problemMatcher": [],
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            },
-            "options": {
-                "shell": {
-                  "executable": "cmd.exe",
-                  "args": ["/c"]
-                }
-            }
-        },
-        {
-            "label": "download dap",
-            "type": "shell",
-            "command": "mingw32-make -j24 ;mingw32-make download_dap",
-            "group": {
-                "kind": "build",
-                "isDefault": false
-            }
-        },
-        {
-            "label": "download jlink",
-            "type": "shell",
-            "command": "mingw32-make download_jlink",
-            "group": {
-                "kind": "build",
-                "isDefault": false
-            }
-        },
-        {
-            "label": "log",
-            "type": "shell",
-            "command": "JlinkRTTClient",
-            "args": [],
-            "problemMatcher": []
-        }
-    ]
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "CMake: Configure Debug",
+      "type": "process",
+      "command": "cmake",
+      "args": [
+        "--preset",
+        "Debug"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "CMake: Build Debug",
+      "type": "process",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "Debug",
+        "-j"
+      ],
+      "dependsOn": [
+        "CMake: Configure Debug"
+      ],
+      "dependsOrder": "sequence",
+      "problemMatcher": [
+        "$gcc"
+      ],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "CMake: Clean Debug",
+      "type": "process",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "Debug",
+        "--target",
+        "clean"
+      ],
+      "dependsOn": [
+        "CMake: Configure Debug"
+      ],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "Firmware: Generate HEX",
+      "type": "process",
+      "command": "arm-none-eabi-objcopy",
+      "args": [
+        "-O",
+        "ihex",
+        "${workspaceFolder}/build/Debug/basic_framework.elf",
+        "${workspaceFolder}/build/Debug/basic_framework.hex"
+      ],
+      "dependsOn": [
+        "CMake: Build Debug"
+      ],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "Firmware: Generate BIN",
+      "type": "process",
+      "command": "arm-none-eabi-objcopy",
+      "args": [
+        "-O",
+        "binary",
+        "-S",
+        "${workspaceFolder}/build/Debug/basic_framework.elf",
+        "${workspaceFolder}/build/Debug/basic_framework.bin"
+      ],
+      "dependsOn": [
+        "CMake: Build Debug"
+      ],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "Flash: CMSIS-DAP (OpenOCD)",
+      "type": "process",
+      "command": "openocd",
+      "args": [
+        "-f",
+        "${workspaceFolder}/openocd_dap.cfg",
+        "-c",
+        "init",
+        "-c",
+        "reset halt",
+        "-c",
+        "flash write_image erase build/Debug/basic_framework.bin 0x08000000",
+        "-c",
+        "verify_image build/Debug/basic_framework.bin 0x08000000",
+        "-c",
+        "reset run",
+        "-c",
+        "shutdown"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "dependsOn": [
+        "Firmware: Generate BIN"
+      ],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "Flash: J-Link",
+      "type": "process",
+      "command": "JFlash",
+      "args": [
+        "-openprj",
+        "${workspaceFolder}/stm32.jflash",
+        "-open",
+        "${workspaceFolder}/build/Debug/basic_framework.hex,0x8000000",
+        "-auto",
+        "-startapp",
+        "-exit"
+      ],
+      "dependsOn": [
+        "Firmware: Generate HEX"
+      ],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "Build + Flash: CMSIS-DAP",
+      "dependsOn": [
+        "Flash: CMSIS-DAP (OpenOCD)"
+      ],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "Build + Flash: J-Link",
+      "dependsOn": [
+        "Flash: J-Link"
+      ],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "RTT: J-Link Client",
+      "type": "process",
+      "command": "JLinkRTTClient",
+      "problemMatcher": []
+    }
+  ]
 }

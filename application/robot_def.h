@@ -17,8 +17,8 @@
 #include "stdint.h"
 
 /* 开发板类型定义,烧录时注意不要弄错对应功能;修改定义后需要重新编译,只能存在一个定义! */
-#define CHASSIS_BOARD                 // 底盘板 (速控底盘)
-//#define GIMBAL_BOARD                    // 云台板
+//#define CHASSIS_BOARD                 // 底盘板 (速控底盘)
+#define GIMBAL_BOARD                    // 云台板
 //#define CHASSIS_ONLY                  // 底盘调试模式: 无云台,只有底盘+超级电容+遥控器 
 //#define FORCE_CONTROL_CHASSIS_BOARD   // 力控底盘板
 
@@ -106,9 +106,9 @@
 
 // 拨盘堵转检测与反转参数
 #define BLOCK_DETECT_THRESHOLD 0.70f   // 堵转判定误差阈值(误差/目标值)
-#define BLOCK_DETECT_COUNT 15         // 堵转判定次数
+#define BLOCK_DETECT_COUNT 999         // 堵转判定次数
 #define BLOCK_SPEED_THRESHOLD  18000.0f  // 拨盘堵转辅助判定: 低转速阈值 (degree/s, 电机转子)
-#define BLOCK_CURRENT_THRESHOLD 5000   // 拨盘堵转辅助判定: 高反馈电流阈值 (DJI原始反馈值)
+#define BLOCK_CURRENT_THRESHOLD 9000   // 拨盘堵转辅助判定: 高反馈电流阈值 (DJI原始反馈值)
 #define BLOCK_TIME_RECORD_COUNT 20     // 记录堵转时间戳的计数阈值，不建议修改 20
 #define REVERSE_DURATION_MS 80          // 反转持续时间(ms)
 #define REVERSE_ANGLE_RATIO 0.8f       // 反转角度系数，不建议修改 1.0
@@ -140,7 +140,7 @@
 
 /* ======================== 底盘自旋参数 ======================== */
 #define CHASSIS_ROTATE_BASE_WZ       5000.0f  // 小陀螺基础自旋速度 (degree/s)
-#define CHASSIS_ROTATE_DASH_RATIO    0.7f    // 键鼠模式按住Shift时的小陀螺倍率
+#define CHASSIS_ROTATE_DASH_RATIO    1.7f    // 键鼠模式按住Shift时的小陀螺倍率
 
 /* ======================== 发射弹速闭环参数 ======================== */
 #define SHOOT_BULLET_SPEED_TARGET      22.5f     // 目标弹速 (m/s)
@@ -188,8 +188,8 @@
 /* ======================== 云台前馈参数 ======================== */
 // 前馈在gimbal中本地计算。yaw链路使用工程/raw域参数，直接输出GM6020电流原始值。
 // 速度前馈系数 (目标角速度 * 系数 = 速度前馈输出)
-#define YAW_SPEED_FF_COEF       1.0f     // yaw速度前馈系数
-#define PITCH_SPEED_FF_COEF     1.0f     // pitch速度前馈系数 
+#define YAW_SPEED_FF_COEF       0.5f     // yaw速度前馈系数
+#define PITCH_SPEED_FF_COEF     0.5f     // pitch速度前馈系数 
 // yaw目标运动前馈: 直接在raw域建模，使用参考角速度/角加速度，不依赖物理扭矩单位
 #define YAW_ACC_FF_COEF_RAW_POS           0.0f   // yaw正向目标运动加速度项 (GM6020 raw per rad/s²)
 #define YAW_MOTION_W_FF_COEF_RAW_POS      0.0f       // yaw正向目标运动粘滞项 (GM6020 raw per rad/s)

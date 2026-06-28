@@ -81,6 +81,7 @@ static uint32_t yaw_ident_round_trip_count;
 static float pitch_ident_center_yaw;
 static float pitch_ident_center_pitch;
 static fire_mode_e vision_fire_mode = FIRE_ON;
+static uint8_t image_remote_auto_aim_enabled;
 
 #if defined(VISION_USE_VCP) || defined(VISION_USE_UART)
 static uint8_t vision_interp_initialized;
@@ -133,6 +134,17 @@ static float VisionPitchSafeValue(float pitch, float fallback)
     return float_constrain(pitch, PITCH_MIN_LIMIT, PITCH_MAX_LIMIT);
 }
 
+static float VisionYawToNearestTurn(float yaw, float reference)
+{
+    while (yaw - reference > 180.0f)
+        yaw -= 360.0f;
+
+    while (yaw - reference < -180.0f)
+        yaw += 360.0f;
+
+    return yaw;
+}
+
 static void GetVisionInterpolatedAim(float *yaw, float *pitch, uint8_t *pitch_valid)
 {
     float now_ms = DWT_GetTimeline_ms();
@@ -155,6 +167,7 @@ static void UpdateVisionInterpolation(void)
     float now_ms = DWT_GetTimeline_ms();
     float current_yaw;
     float current_pitch;
+    float target_yaw;
     uint8_t tracking_valid = (vision_recv_cache.tracking != NO_TARGET);
     uint8_t pitch_valid = (fabsf(vision_recv_cache.aimPitch) > 1e-3f);
     uint8_t target_changed;
@@ -162,8 +175,9 @@ static void UpdateVisionInterpolation(void)
     if (!vision_interp_initialized)
     {
         vision_interp_initialized = 1;
-        vision_interp_start_yaw = vision_recv_cache.aimYaw;
-        vision_interp_target_yaw = vision_recv_cache.aimYaw;
+        target_yaw = VisionYawToNearestTurn(vision_recv_cache.aimYaw, gimbal_fetch_data.gimbal_imu_data.YawTotalAngle);
+        vision_interp_start_yaw = gimbal_fetch_data.gimbal_imu_data.YawTotalAngle;
+        vision_interp_target_yaw = target_yaw;
         vision_interp_start_pitch = gimbal_fetch_data.gimbal_imu_data.Pitch;
         vision_interp_target_pitch = pitch_valid ? vision_recv_cache.aimPitch : gimbal_fetch_data.gimbal_imu_data.Pitch;
         vision_interp_start_ms = now_ms;
@@ -174,9 +188,10 @@ static void UpdateVisionInterpolation(void)
 
     current_yaw = GetVisionInterpValue(vision_interp_start_yaw, vision_interp_target_yaw, now_ms);
     current_pitch = GetVisionInterpValue(vision_interp_start_pitch, vision_interp_target_pitch, now_ms);
+    target_yaw = VisionYawToNearestTurn(vision_recv_cache.aimYaw, current_yaw);
 
     target_changed =
-        (fabsf(vision_recv_cache.aimYaw - vision_interp_target_yaw) > VISION_INTERP_EPSILON_DEG) ||
+        (fabsf(target_yaw - vision_interp_target_yaw) > VISION_INTERP_EPSILON_DEG) ||
         (pitch_valid && fabsf(vision_recv_cache.aimPitch - vision_interp_target_pitch) > VISION_INTERP_EPSILON_DEG) ||
         (vision_interp_pitch_valid != pitch_valid) ||
         (vision_interp_last_tracking != tracking_valid);
@@ -185,7 +200,7 @@ static void UpdateVisionInterpolation(void)
         return;
 
     vision_interp_start_yaw = current_yaw;
-    vision_interp_target_yaw = vision_recv_cache.aimYaw;
+    vision_interp_target_yaw = target_yaw;
     vision_interp_start_pitch = current_pitch;
     vision_interp_target_pitch = pitch_valid ? vision_recv_cache.aimPitch : current_pitch;
     vision_interp_start_ms = now_ms;
@@ -561,51 +576,14 @@ static void Limitshoot()
 #ifdef COOLING_PRIORITY
 static void Limitshoot()
 {   
-    // int heat = chassis_fetch_data.rest_heat;
-    // int level = 0;
-    // if (heat >= 155)
-    //     level = 5;
-    // else if (heat >= 120)
-    //     level = 4;
-    // else if (heat >= 85)
-    //     level = 3;
-    // else if (heat >= 40)
-    //     level = 2;
-    // else if (heat >= 30)
-    //     level = 1;
-    // else 
-    //     level = 0;
-    
-    // switch (level)
-    // {
-    // case 5:
-    //     shoot_cmd_send.shoot_rate = 20;
-    //     break;
-    // case 4:
-    //     shoot_cmd_send.shoot_rate = 18;
-    //     break;
-    // case 3:
-    //     shoot_cmd_send.shoot_rate = 15;
-    //     break;
-    // case 2:
-    //     shoot_cmd_send.shoot_rate = 5;
-    //     break;
-    // case 1:
-    //     shoot_cmd_send.shoot_rate = 2;
-    //     break;
-    // case 0:
-    //     shoot_cmd_send.shoot_rate = 1;
-    //     break;
-    // default:
-    //     shoot_cmd_send.shoot_rate = 5;
-    //     break;
-    //}
-    int shoot_rate = 0.009 * chassis_fetch_data.rest_heat;
-    if (shoot_rate > 25)
-        shoot_rate = 25;
-    if (shoot_rate < 3)
-        shoot_rate = 1.4;
-    shoot_cmd_send.shoot_rate = shoot_rate;
+
+    // int shoot_rate = 0;
+    // if (chassis_fetch_data.rest_heat > 40)
+    //     shoot_rate = 18;
+    // if (chassis_fetch_data.rest_heat <= 40)
+    //     shoot_rate = 1.4;
+    // shoot_cmd_send.shoot_rate = shoot_rate;
+    shoot_cmd_send.shoot_rate = 10;
 }
 #endif // DEBUG
 
@@ -686,12 +664,19 @@ static void CalcOffsetAngle()
 #endif
 }
 
+static void SyncGimbalCmdToCurrentPose(void)
+{
+    gimbal_cmd_send.yaw = gimbal_fetch_data.gimbal_imu_data.YawTotalAngle;
+    gimbal_cmd_send.pitch = gimbal_fetch_data.gimbal_imu_data.Pitch;
+}
+
 /**
  * @brief 控制输入为遥控器(调试时)的模式和控制量设置
  *
  */
 static void RemoteControlSet()
 {
+    static uint8_t last_remote_vision_active = 0;
     chassis_cmd_send.fire_mode = vision_fire_mode;
     shoot_cmd_send.shoot_mode = SHOOT_ON;
     
@@ -998,8 +983,6 @@ static void image_rc_data_To_rc_data_t(void)
     case IMAGE_SW_MID:   rc_data[TEMP].rc.switch_right = 3; break; // MID  -> MID(云台底盘分离)
     case IMAGE_SW_RIGHT: rc_data[TEMP].rc.switch_right = 1; break; // RIGHT-> UP(跟头)
     }
-    if (image_rc_data[TEMP].rc.trigger)
-        rc_data[TEMP].rc.dial = 500;
 }
 
 /**
@@ -1017,7 +1000,7 @@ static void ImageMouseKeySet()
     shoot_cmd_send.shoot_mode = SHOOT_ON;
     gimbal_cmd_send.gimbal_mode = GIMBAL_FREE_MODE;
 
-    // X键刷新UI
+    // X键刷新UI，并复用UI刷新标志位触发底盘侧软件复位
     uint8_t current_x_key_count = image_rc_data[TEMP].key_count[KEY_PRESS][Key_X];
     if (!x_key_count_initialized)
     {
@@ -1046,7 +1029,7 @@ static void ImageMouseKeySet()
     {
         uint8_t vision_tracking = 0;
 #if defined(VISION_USE_VCP) || defined(VISION_USE_UART)
-    vision_tracking = (vision_recv_cache.tracking != 0);
+        vision_tracking = (vision_recv_cache.tracking != 0);
 #elif defined(VISION_USE_SERIALPORT)
         vision_tracking = (vision_recv_data_sp->shootStatus != 0);
 #endif
@@ -1060,18 +1043,20 @@ static void ImageMouseKeySet()
                 uint8_t interp_pitch_valid;
 
                 GetVisionInterpolatedAim(&interp_yaw, &interp_pitch, &interp_pitch_valid);
+                interp_yaw = VisionYawToNearestTurn(interp_yaw, gimbal_cmd_send.yaw);
                 yaw_diff = interp_yaw - gimbal_cmd_send.yaw;
-                if (yaw_diff > 180)  
-                yaw_diff -= 360;
-                if (yaw_diff < -180) 
-                yaw_diff += 360;
+                if (yaw_diff > 180)
+                    yaw_diff -= 360;
+                if (yaw_diff < -180)
+                    yaw_diff += 360;
                 yaw_diff = loop_float_constrain(yaw_diff, -45.0f, 45.0f);
                 gimbal_cmd_send.yaw += yaw_diff;
                 if (interp_pitch_valid)
                     gimbal_cmd_send.pitch = interp_pitch;
             }
 #elif defined(VISION_USE_SERIALPORT)
-            if (vision_recv_data_sp->yaw != 0 || vision_recv_data_sp->pitch != 0) {
+            if (vision_recv_data_sp->yaw != 0 || vision_recv_data_sp->pitch != 0)
+            {
                 float aim_yaw = (float)vision_recv_data_sp->yaw / 100.0f;
                 float aim_pitch = (float)vision_recv_data_sp->pitch / 100.0f;
                 gimbal_cmd_send.yaw += loop_float_constrain(aim_yaw - gimbal_cmd_send.yaw, -45, 45);
@@ -1111,14 +1096,14 @@ static void ImageMouseKeySet()
     default: chassis_cmd_send.chassis_mode = CHASSIS_ROTATE;            break;
     }; break;
     }
-        // G键视觉目标
+
+    // G键视觉目标
     switch (image_rc_data[TEMP].key_count[KEY_PRESS][Key_G] % 3)
     {
     case 0:  vision_work_mode = VISION_MODE_AIM;        break;
     case 1:  vision_work_mode = VISION_MODE_SMALL_BUFF; break;
     default: vision_work_mode = VISION_MODE_BIG_BUFF;   break;
     }
-
 
     // 鼠标左键射击
     switch (image_rc_data[TEMP].mouse.press_l)
@@ -1176,7 +1161,6 @@ static void ImageMouseKeySet()
     chassis_cmd_send.vy = image_rc_data[TEMP].key[KEY_PRESS].w * chassis_speed_buff - image_rc_data[TEMP].key[KEY_PRESS].s * chassis_speed_buff;
     chassis_cmd_send.vx = image_rc_data[TEMP].key[KEY_PRESS].a * chassis_speed_buff - image_rc_data[TEMP].key[KEY_PRESS].d * chassis_speed_buff;
 
-
     if (shoot_cmd_send.friction_mode == FRICTION_OFF && shoot_cmd_send.load_mode != LOAD_REVERSE)
         shoot_cmd_send.load_mode = LOAD_STOP;
 }
@@ -1184,6 +1168,9 @@ static void ImageMouseKeySet()
 /* 机器人核心控制任务,200Hz频率运行(必须高于视觉发送频率) */
 void RobotCMDTask()
 {
+    static uint8_t gimbal_was_zero_force = 1;
+    static uint8_t last_control_switch_left = 0xff;
+    static uint8_t last_control_switch_right = 0xff;
 #ifdef CHASSIS_ONLY
     // ===================== CHASSIS_ONLY模式: 仅底盘控制任务 =====================
     // 获取底盘反馈
@@ -1218,9 +1205,13 @@ void RobotCMDTask()
     if (ImageRemoteIsOnline())
     {
         static uint8_t last_key_stop = 0;
+        static uint8_t last_userkey_left = 0;
         static uint8_t last_userkey_right = 0;
+        static uint8_t last_trigger = 0;
         uint8_t current_key_stop = image_rc_data[TEMP].rc.key_stop;
+        uint8_t current_userkey_left = image_rc_data[TEMP].rc.userkey_left;
         uint8_t current_userkey_right = image_rc_data[TEMP].rc.userkey_right;
+        uint8_t current_trigger = image_rc_data[TEMP].rc.trigger;
 
         // key_stop改为按键切换: 上升沿触发急停状态翻转
         if (current_key_stop && !last_key_stop)
@@ -1253,9 +1244,26 @@ void RobotCMDTask()
             rc_data[TEMP].rc.switch_left =
                 (image_rc_data[TEMP].rc.switch_sw == IMAGE_SW_LEFT) ? 1 : 2;
             // 拷贝鼠标键盘数据
+            if (image_rc_data[TEMP].rc.switch_sw != IMAGE_SW_LEFT)
+            {
+                if (current_userkey_left && !last_userkey_left)
+                {
+                    image_remote_auto_aim_enabled = !image_remote_auto_aim_enabled;
+                }
+
+                if (current_trigger && !last_trigger)
+                {
+                    vision_fire_mode = (vision_fire_mode == FIRE_ON) ? FIRE_OFF : FIRE_ON;
+                }
+
+                rc_data[TEMP].rc.switch_left =
+                    image_remote_auto_aim_enabled ? RC_SW_MID : RC_SW_DOWN;
+            }
             memcpy(&rc_data[TEMP].mouse, &image_rc_data[TEMP].mouse, sizeof(rc_data[TEMP].mouse));
             memcpy(&rc_data[TEMP].key, &image_rc_data[TEMP].key, sizeof(rc_data[TEMP].key));
         }
+        last_userkey_left = current_userkey_left;
+        last_trigger = current_trigger;
     }
     else if (!RemoteControlIsOnline())
     {
@@ -1267,6 +1275,9 @@ void RobotCMDTask()
     // ======== 丢控保护: switch_right==0 → 全部零力矩 ========
     if (rc_data[TEMP].rc.switch_right == 0)
     {
+        gimbal_was_zero_force = 1;
+        last_control_switch_left = rc_data[TEMP].rc.switch_left;
+        last_control_switch_right = rc_data[TEMP].rc.switch_right;
         chassis_cmd_send.chassis_mode = CHASSIS_ZERO_FORCE;
         gimbal_cmd_send.gimbal_mode = GIMBAL_ZERO_FORCE;
         shoot_cmd_send.shoot_mode = SHOOT_OFF;
@@ -1278,6 +1289,19 @@ void RobotCMDTask()
     else
     {
         // ======== 统一控制路径 ========
+        if (gimbal_was_zero_force)
+        {
+            gimbal_cmd_send.yaw = gimbal_fetch_data.gimbal_imu_data.YawTotalAngle;
+            gimbal_cmd_send.pitch = gimbal_fetch_data.gimbal_imu_data.Pitch;
+            gimbal_was_zero_force = 0;
+        }
+        if (rc_data[TEMP].rc.switch_left != last_control_switch_left ||
+            rc_data[TEMP].rc.switch_right != last_control_switch_right)
+        {
+            SyncGimbalCmdToCurrentPose();
+            last_control_switch_left = rc_data[TEMP].rc.switch_left;
+            last_control_switch_right = rc_data[TEMP].rc.switch_right;
+        }
         if (switch_is_down(rc_data[TEMP].rc.switch_left) || switch_is_mid(rc_data[TEMP].rc.switch_left))
             RemoteControlSet();
         else if (switch_is_up(rc_data[TEMP].rc.switch_left))
