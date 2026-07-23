@@ -48,7 +48,7 @@ set(MX_Application_Src
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Src/stm32f4xx_hal_timebase_tim.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Src/sysmem.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Src/syscalls.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../startup_stm32f407xx.s
+    ${CMAKE_CURRENT_SOURCE_DIR}/startup_stm32f407xx.s
 )
 
 # STM32 HAL/LL Drivers

@@ -56,7 +56,7 @@
       "command": "openocd",
       "args": [
         "-f",
-        "${workspaceFolder}/openocd_dap.cfg",
+        "${workspaceFolder}/tools/openocd/openocd_dap.cfg",
         "-c",
         "init",
         "-c",
@@ -85,7 +85,7 @@
       "command": "JFlash",
       "args": [
         "-openprj",
-        "${workspaceFolder}/stm32.jflash",
+        "${workspaceFolder}/tools/stm32.jflash",
         "-open",
         "${workspaceFolder}/build/Debug/basic_framework.hex,0x8000000",
         "-auto",

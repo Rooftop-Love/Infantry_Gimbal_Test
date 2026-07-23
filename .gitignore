@@ -104,6 +104,9 @@ wheels/
 Thumbs.db
 desktop.ini
 
+# Local IDE state
+.tabviews.json
+
 # Local assistant/tool state
 .claude/
 .yoyo/

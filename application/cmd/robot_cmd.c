@@ -21,6 +21,9 @@
 #include "general_def.h"
 #include "dji_motor.h"
 #include <math.h>
+#if GIMBAL_TEST_MODE && defined(GIMBAL_BOARD)
+#include "gimbal_test.h"
+#endif
 
 // 私有宏,自动将编码器转换成角度值
 #define YAW_ALIGN_ANGLE (YAW_CHASSIS_ALIGN_ECD * ECD_ANGLE_COEF_DJI) // 对齐时的角度,0-360
@@ -63,6 +66,10 @@ static Publisher_t *gimbal_cmd_pub;            // 云台控制消息发布者
 static Subscriber_t *gimbal_feed_sub;          // 云台反馈信息订阅者
 static Gimbal_Ctrl_Cmd_s gimbal_cmd_send;      // 传递给云台的控制信息
 static Gimbal_Upload_Data_s gimbal_fetch_data; // 从云台获取的反馈信息
+#if GIMBAL_TEST_MODE && defined(GIMBAL_BOARD)
+static Subscriber_t *gimbal_test_sub;
+static Gimbal_Test_Input_s gimbal_test_input;
+#endif
 
 static Publisher_t *shoot_cmd_pub;           // 发射控制消息发布者
 static Subscriber_t *shoot_feed_sub;         // 发射反馈信息订阅者
@@ -609,6 +616,9 @@ void RobotCMDInit()
 
     gimbal_cmd_pub = PubRegister("gimbal_cmd", sizeof(Gimbal_Ctrl_Cmd_s));
     gimbal_feed_sub = SubRegister("gimbal_feed", sizeof(Gimbal_Upload_Data_s));
+#if GIMBAL_TEST_MODE && defined(GIMBAL_BOARD)
+    gimbal_test_sub = SubRegister(GIMBAL_TEST_INPUT_TOPIC, sizeof(Gimbal_Test_Input_s));
+#endif
     shoot_cmd_pub = PubRegister("shoot_cmd", sizeof(Shoot_Ctrl_Cmd_s));
     shoot_feed_sub = SubRegister("shoot_feed", sizeof(Shoot_Upload_Data_s));
 
@@ -1168,9 +1178,18 @@ static void ImageMouseKeySet()
 /* 机器人核心控制任务,200Hz频率运行(必须高于视觉发送频率) */
 void RobotCMDTask()
 {
+#if !GIMBAL_TEST_MODE || !defined(GIMBAL_BOARD)
     static uint8_t gimbal_was_zero_force = 1;
     static uint8_t last_control_switch_left = 0xff;
     static uint8_t last_control_switch_right = 0xff;
+#endif
+#if GIMBAL_TEST_MODE && defined(GIMBAL_BOARD)
+    static uint8_t gimbal_test_input_ready;
+    static uint8_t gimbal_feedback_ready;
+    static uint8_t gimbal_test_reference_initialized;
+    static float gimbal_test_reference_yaw;
+    static float gimbal_test_reference_pitch;
+#endif
 #ifdef CHASSIS_ONLY
     // ===================== CHASSIS_ONLY模式: 仅底盘控制任务 =====================
     // 获取底盘反馈
@@ -1194,13 +1213,51 @@ void RobotCMDTask()
     chassis_fetch_data = *(Chassis_Upload_Data_s *)CANCommGet(cmd_can_comm);
 #endif // GIMBAL_BOARD
     SubGetMessage(shoot_feed_sub, &shoot_fetch_data);
+#if GIMBAL_TEST_MODE && defined(GIMBAL_BOARD)
+    if (SubGetMessage(gimbal_feed_sub, &gimbal_fetch_data))
+        gimbal_feedback_ready = 1;
+#else
     SubGetMessage(gimbal_feed_sub, &gimbal_fetch_data);
+#endif
     CalcOffsetAngle();
 #if defined(VISION_USE_VCP) || defined(VISION_USE_UART)
     RefreshVisionRecvCache();
     UpdateVisionInterpolation();
 #endif
 
+#if GIMBAL_TEST_MODE && defined(GIMBAL_BOARD)
+    if (SubGetMessage(gimbal_test_sub, &gimbal_test_input))
+        gimbal_test_input_ready = 1;
+
+    chassis_cmd_send.chassis_mode = CHASSIS_ZERO_FORCE;
+    chassis_cmd_send.vx = 0.0f;
+    chassis_cmd_send.vy = 0.0f;
+    chassis_cmd_send.wz = 0.0f;
+    shoot_cmd_send.shoot_mode = SHOOT_OFF;
+    shoot_cmd_send.friction_mode = FRICTION_OFF;
+    shoot_cmd_send.load_mode = LOAD_STOP;
+
+    if (!gimbal_test_input_ready || !gimbal_feedback_ready)
+    {
+        gimbal_cmd_send.gimbal_mode = GIMBAL_ZERO_FORCE;
+    }
+    else
+    {
+        if (!gimbal_test_reference_initialized)
+        {
+            gimbal_test_reference_yaw = gimbal_fetch_data.gimbal_imu_data.YawTotalAngle;
+            gimbal_test_reference_pitch = gimbal_fetch_data.gimbal_imu_data.Pitch;
+            gimbal_test_reference_initialized = 1;
+        }
+
+        gimbal_cmd_send.gimbal_mode = GIMBAL_GYRO_MODE;
+        gimbal_cmd_send.yaw = gimbal_test_reference_yaw + gimbal_test_input.yaw_offset_deg;
+        gimbal_cmd_send.pitch = loop_float_constrain(
+            gimbal_test_reference_pitch + gimbal_test_input.pitch_offset_deg,
+            PITCH_MIN_LIMIT, PITCH_MAX_LIMIT);
+        gimbal_cmd_send.chassis_rotate_wz = 0.0f;
+    }
+#else
     // ======== 控制源选择: 图传优先, 两者都离线则失能 ========
     if (ImageRemoteIsOnline())
     {
@@ -1307,6 +1364,7 @@ void RobotCMDTask()
         else if (switch_is_up(rc_data[TEMP].rc.switch_left))
             ImageMouseKeySet();
     }
+#endif
 
     shoot_cmd_send.bullet_speed = chassis_fetch_data.bullet_speed;
     Detect_Color_e enemy_color = GetEnemyDetectColor(chassis_fetch_data.self_color);

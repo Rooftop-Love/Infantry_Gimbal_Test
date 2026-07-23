@@ -99,6 +99,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     modules/daemon/daemon.c
     modules/vofa/vofa.c
     application/gimbal/gimbal.c
+    application/gimbal_test/gimbal_test.c
     application/chassis/chassis.c
     application/chassis/chassis_force_ctrl.c
     application/shoot/shoot.c
@@ -114,6 +115,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     application/chassis
     application/shoot
     application/gimbal
+    application/gimbal_test
     application/cmd
     application/balance_chassis
     application

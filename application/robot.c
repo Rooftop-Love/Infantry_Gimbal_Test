@@ -19,6 +19,9 @@
 #ifdef GIMBAL_BOARD
 #include "gimbal.h"
 #include "shoot.h"
+#if GIMBAL_TEST_MODE
+#include "gimbal_test.h"
+#endif
 #endif
 
 #if defined(GIMBAL_BOARD) || defined(CHASSIS_ONLY) || defined(FORCE_CONTROL_CHASSIS_BOARD)
@@ -38,6 +41,10 @@ void RobotInit()
     __disable_irq();
     
     BSPInit();
+
+#if GIMBAL_TEST_MODE && defined(GIMBAL_BOARD)
+    GimbalTestInit();
+#endif
 
 #if defined(GIMBAL_BOARD) || defined(CHASSIS_ONLY) || defined(FORCE_CONTROL_CHASSIS_BOARD)
     RobotCMDInit();
@@ -66,7 +73,10 @@ void RobotInit()
 
 void RobotTask()
 {
-    
+#if GIMBAL_TEST_MODE && defined(GIMBAL_BOARD)
+    GimbalTestTask();
+#endif
+
 #if defined(GIMBAL_BOARD) || defined(CHASSIS_ONLY) || defined(FORCE_CONTROL_CHASSIS_BOARD)
     RobotCMDTask();
 #endif

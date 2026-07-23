@@ -22,6 +22,13 @@
 //#define CHASSIS_ONLY                  // 底盘调试模式: 无云台,只有底盘+超级电容+遥控器 
 //#define FORCE_CONTROL_CHASSIS_BOARD   // 力控底盘板
 
+/* 云台测试输入源: 0=正常遥控链路, 1=application/gimbal_test测试节点 */
+#define GIMBAL_TEST_MODE 0
+
+#if GIMBAL_TEST_MODE && !defined(GIMBAL_BOARD)
+#error "GIMBAL_TEST_MODE is only available on GIMBAL_BOARD."
+#endif
+
 
 /* 遥控器类型选择: 定义USE_IMAGE_REMOTE使用图传遥控器(UART6), 注释掉则使用原DJI遥控器(USART3/DBUS) */
 //#define USE_IMAGE_REMOTE
