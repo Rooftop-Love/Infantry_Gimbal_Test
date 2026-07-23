@@ -4,17 +4,17 @@
 ```
 APP (application/)  → Module (modules/) → BSP (bsp/) → HAL (HAL_N_Middlewares/)
 ```
-**Never cross-reference layers**: APP→Module→BSP only. Entry point: `HAL_N_Middlewares/Src/main.c`
+**Never cross-reference layers**: APP→Module→BSP only. Entry point: `Src/main.c`
 
 ## First Steps: `application/robot_def.h`
 Controls board mode (`ONE_BOARD`/`GIMBAL_BOARD`/`CHASSIS_BOARD`), vision protocol (`VISION_USE_VCP`/`VISION_USE_UART`/`VISION_USE_SP`), robot type, and hardware params. **Only ONE board mode can be defined**—changing requires full rebuild.
 
 ## Build Commands (Windows)
 ```powershell
-mingw32-make -j24           # Build
-mingw32-make download_dap   # Flash via DAP-Link  
-mingw32-make download_jlink # Flash via J-Link
+cmake --preset Debug
+cmake --build --preset Debug -j
 ```
+Build outputs are generated in `build/Debug/`: `.elf`, `.hex`, `.bin`, and `.map`.
 
 ## Naming Conventions
 - **Functions**: `PascalCase` verb-noun (e.g., `SetMotorControl()`)

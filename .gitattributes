@@ -1,0 +1,32 @@
+# Keep this embedded firmware repository stable across Windows/Linux tools.
+# Git for Windows often has core.autocrlf=true globally; pin text files to LF
+# so CubeMX-generated vendor files do not appear modified without content changes.
+* text=auto
+
+*.c text eol=lf
+*.h text eol=lf
+*.s text eol=lf
+*.ld text eol=lf
+*.ioc text eol=lf
+*.cmake text eol=lf
+CMakeLists.txt text eol=lf
+CMakePresets.json text eol=lf
+
+*.json text eol=lf
+*.md text eol=lf
+*.xml text eol=lf
+*.cfg text eol=lf
+*.jflash text eol=lf
+*.svd text eol=lf
+*.csv text eol=lf
+.mxproject text eol=lf
+
+*.zip binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.pdf binary
+*.elf binary
+*.bin binary
+*.hex text eol=lf

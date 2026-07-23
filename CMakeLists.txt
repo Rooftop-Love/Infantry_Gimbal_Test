@@ -99,7 +99,6 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     modules/daemon/daemon.c
     modules/vofa/vofa.c
     application/gimbal/gimbal.c
-    application/gimbal/gm6020_id_scan_logic.c
     application/chassis/chassis.c
     application/chassis/chassis_force_ctrl.c
     application/shoot/shoot.c
@@ -170,4 +169,16 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     stm32cubemx
 
     # Add user defined libraries
+)
+
+add_custom_command(TARGET ${CMAKE_PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_OBJCOPY} -O ihex $<TARGET_FILE:${CMAKE_PROJECT_NAME}> $<TARGET_FILE_DIR:${CMAKE_PROJECT_NAME}>/$<TARGET_FILE_BASE_NAME:${CMAKE_PROJECT_NAME}>.hex
+    COMMAND ${CMAKE_OBJCOPY} -O binary -S $<TARGET_FILE:${CMAKE_PROJECT_NAME}> $<TARGET_FILE_DIR:${CMAKE_PROJECT_NAME}>/$<TARGET_FILE_BASE_NAME:${CMAKE_PROJECT_NAME}>.bin
+    COMMENT "Generating HEX and BIN images"
+    VERBATIM
+)
+
+set_property(TARGET ${CMAKE_PROJECT_NAME} APPEND PROPERTY ADDITIONAL_CLEAN_FILES
+    ${CMAKE_PROJECT_NAME}.hex
+    ${CMAKE_PROJECT_NAME}.bin
 )

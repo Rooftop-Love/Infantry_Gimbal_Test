@@ -51,39 +51,6 @@
       "problemMatcher": []
     },
     {
-      "label": "Firmware: Generate HEX",
-      "type": "process",
-      "command": "arm-none-eabi-objcopy",
-      "args": [
-        "-O",
-        "ihex",
-        "${workspaceFolder}/build/Debug/basic_framework.elf",
-        "${workspaceFolder}/build/Debug/basic_framework.hex"
-      ],
-      "dependsOn": [
-        "CMake: Build Debug"
-      ],
-      "dependsOrder": "sequence",
-      "problemMatcher": []
-    },
-    {
-      "label": "Firmware: Generate BIN",
-      "type": "process",
-      "command": "arm-none-eabi-objcopy",
-      "args": [
-        "-O",
-        "binary",
-        "-S",
-        "${workspaceFolder}/build/Debug/basic_framework.elf",
-        "${workspaceFolder}/build/Debug/basic_framework.bin"
-      ],
-      "dependsOn": [
-        "CMake: Build Debug"
-      ],
-      "dependsOrder": "sequence",
-      "problemMatcher": []
-    },
-    {
       "label": "Flash: CMSIS-DAP (OpenOCD)",
       "type": "process",
       "command": "openocd",
@@ -107,7 +74,7 @@
         "cwd": "${workspaceFolder}"
       },
       "dependsOn": [
-        "Firmware: Generate BIN"
+        "CMake: Build Debug"
       ],
       "dependsOrder": "sequence",
       "problemMatcher": []
@@ -126,7 +93,7 @@
         "-exit"
       ],
       "dependsOn": [
-        "Firmware: Generate HEX"
+        "CMake: Build Debug"
       ],
       "dependsOrder": "sequence",
       "problemMatcher": []

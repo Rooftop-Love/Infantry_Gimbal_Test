@@ -14,7 +14,14 @@
 
 - **开发方式**：
 
-  本框架使用stm32cubemx生成，基于makefile编译系统（后期拟修改为cmake+nijna+makefile以提高编译速度，对于目前的版本您可以考虑自行安装ccache以提高编译速度），使用arm gnu工具链开发，利用arm-none-eabi-gcc编译（make命令,命令行为mingw32-make）。
+  本框架使用 STM32CubeMX 生成，基于 CMake + Ninja 构建，使用 ARM GNU Toolchain 和 `arm-none-eabi-gcc` 编译。推荐命令如下：
+
+  ```powershell
+  cmake --preset Debug
+  cmake --build --preset Debug -j
+  ```
+
+  构建产物位于 `build/Debug/`，包括 `basic_framework.elf`、`basic_framework.hex` 和 `basic_framework.bin`。
 
   > ***==！deprecated==***：若需使用keil5开发，请在stm32cubemx的`project manager`标签页下将工具链改为MDK，然后在keil中自行添加所需包含的.c文件和头文件。关于如何在keil下添加dsplib，请参考文档。在vscode中也有**KEIL assistant**和**Embedded IDE**插件可供使用。
   >
@@ -193,7 +200,9 @@ ROOT:.
 │  basic_framework.ioc # CubeMX初始化配置文件
 |  debug_ozone.jdebug # ozone debug调试配置和缓存文件
 │  LICENSE # 开源协议文件
-│  Makefile # 编译管理文件,为make(mingw32-make)命令的目标
+│  CMakeLists.txt # 顶层CMake工程文件
+│  CMakePresets.json # CMake预设配置
+├─cmake # CMake工具链和CubeMX生成的CMake子工程
 │  openocd_dap.cfg # 用于OpenOCD调试使用的配置文件,dap用
 │  openocd_jlink.cfg # 用于OpenOCD调试使用的配置文件,jlink用
 │  README.md # 本说明文档
@@ -201,7 +210,6 @@ ROOT:.
 │  stm32.jflash # jlink的烧录的配置文件,一键下载用
 │  STM32F407.svd # F407外设地址映射文件,用于调试
 │  STM32F407IGHx_FLASH.ld # F407IGH(C板MCU)目标FLASH地址和链接规则,用于编译(作为链接阶段的链接器)
-|  task.ps1 # powershell脚本,一键编译并进入ozone调试/reset开发板用
 │  TODO.md # 项目待完成的任务
 │  VSCode+Ozone使用方法.md # 开发环境配置和前置知识介绍
 │  修改HAL配置时文件目录的更改.md # 重新配置CubeMX时的步骤和注意事项

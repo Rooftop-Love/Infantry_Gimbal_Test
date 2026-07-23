@@ -63,11 +63,6 @@ CMakeUserPresets.json
 Testing/
 CTestTestfile.cmake
 
-# Local/generated CMake project files
-CMakeLists.txt
-CMakePresets.json
-cmake/
-
 # Kernel module compile results
 *.mod*
 *.cmd
